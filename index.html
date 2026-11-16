@@ -30,7 +30,7 @@
         body {
             background-color: var(--bg-color);
             color: var(--text-main);
-            padding-bottom: 90px; /* 大きくなったナビゲーションに被らないよう余白を確保 */
+            padding-bottom: 90px;
         }
 
         header {
@@ -102,7 +102,7 @@
             opacity: 0.8;
         }
 
-        /* 下部ナビゲーション（タブボタンを大きく押しやすく改善） */
+        /* 下部ナビゲーション */
         nav {
             position: fixed;
             bottom: 0;
@@ -121,9 +121,9 @@
             background: none;
             border: none;
             color: var(--text-sub);
-            font-size: 0.85rem; /* フォントサイズを拡大 */
+            font-size: 0.85rem;
             width: 100%;
-            padding: 12px 4px; /* タップ領域を上下に拡大 */
+            padding: 12px 4px;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -229,10 +229,14 @@
         <!-- 1. ホーム画面 -->
         <section id="view-home" class="view-section active">
             <div class="card">
-                <h2>本日のサマリー (<span id="home-date"></span>)</h2>
+                <h2>指定日のサマリー &amp; 一覧</h2>
+                <div class="form-group">
+                    <label>確認する日付を選択</label>
+                    <input type="date" id="home-filter-date" onchange="updateHome()">
+                </div>
                 <div class="stats-grid">
                     <div class="stat-box">
-                        <label>本日の喫煙本数</label>
+                        <label>選択日の喫煙本数</label>
                         <div class="stat-value" id="home-smoke-count">0 本</div>
                     </div>
                     <div class="stat-box">
@@ -240,11 +244,11 @@
                         <div class="stat-value" id="home-success-rate">0 %</div>
                     </div>
                     <div class="stat-box">
-                        <label>削減コスト (本日)</label>
+                        <label>削減コスト (選択日)</label>
                         <div class="stat-value" id="home-saved-cost">¥0</div>
                     </div>
                     <div class="stat-box">
-                        <label>出費コスト (本日)</label>
+                        <label>出費コスト (選択日)</label>
                         <div class="stat-value" id="home-spent-cost">¥0</div>
                     </div>
                 </div>
@@ -261,9 +265,9 @@
             </div>
 
             <div class="card">
-                <h2>最近の記録一覧（編集・削除対応）</h2>
+                <h2>選択日の記録一覧（編集・削除対応）</h2>
                 <div id="home-recent-list">
-                    <p style="font-size: 0.85rem; color: var(--text-sub);">記録はまだありません。</p>
+                    <p style="font-size: 0.85rem; color: var(--text-sub);">選択された日付の記録はありません。</p>
                 </div>
             </div>
         </section>
@@ -378,6 +382,29 @@
                         <label>出費コスト</label>
                         <div class="stat-value" id="ana-total-spent">¥0</div>
                     </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>シーン別 詳細分析（選択式）</h2>
+                <div class="form-group">
+                    <label>分析するシーンを選択</label>
+                    <select id="ana-select-scene" onchange="updateSceneDetailAnalysis()"></select>
+                </div>
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>実施した対策案</th>
+                                <th>実践</th>
+                                <th>成功率</th>
+                                <th>体感コメント</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ana-scene-detail-tbody">
+                            <tr><td colspan="4" style="text-align:center;">データなし</td></tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
@@ -497,7 +524,12 @@
             const year = now.getFullYear();
             const month = String(now.getMonth() + 1).padStart(2, '0');
             const day = String(now.getDate()).padStart(2, '0');
-            document.getElementById('home-date').innerText = `${year}/${month}/${day}`;
+            
+            const filterDateInput = document.getElementById('home-filter-date');
+            if (filterDateInput) {
+                filterDateInput.value = `${year}-${month}-${day}`;
+            }
+
             loadSettingsToForm();
             updateHome();
         };
@@ -612,15 +644,16 @@
         }
 
         function updateHome() {
-            const now = new Date();
-            const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-            const todayRecords = appData.records.filter(r => r.datetime.startsWith(todayStr));
+            const filterDateInput = document.getElementById('home-filter-date');
+            const selectedDateStr = filterDateInput ? filterDateInput.value : '';
+
+            const selectedRecords = appData.records.filter(r => r.datetime.startsWith(selectedDateStr));
 
             let smokeTotal = 0;
             let successCount = 0;
             let totalActionCount = 0;
 
-            todayRecords.forEach(r => {
+            selectedRecords.forEach(r => {
                 smokeTotal += r.smokeCount;
                 if (r.result === 'success' || r.result === 'fail_smoke') {
                     totalActionCount++;
@@ -631,7 +664,8 @@
             const successRate = totalActionCount > 0 ? Math.round((successCount / totalActionCount) * 100) : 0;
             const pricePerSmoke = appData.settings.boxPrice / appData.settings.boxAmount;
             const baseCount = appData.settings.baseCount || 8;
-            const savedCount = Math.max(0, (baseCount * todayRecords.length) - smokeTotal);
+            
+            const savedCount = Math.max(0, baseCount - smokeTotal);
             const savedCost = Math.round(savedCount * pricePerSmoke);
             const spentCost = Math.round(smokeTotal * pricePerSmoke);
 
@@ -647,13 +681,13 @@
             document.getElementById('home-cost-progress-text').innerText = '達成率: ' + targetRate + '%';
 
             const listContainer = document.getElementById('home-recent-list');
-            if (appData.records.length === 0) {
-                listContainer.innerHTML = '<p style="font-size: 0.85rem; color: var(--text-sub);">記録はまだありません。</p>';
+            if (selectedRecords.length === 0) {
+                listContainer.innerHTML = '<p style="font-size: 0.85rem; color: var(--text-sub);">選択された日付の記録はありません。</p>';
                 return;
             }
 
             let html = '';
-            appData.records.slice(0, 10).forEach(r => {
+            selectedRecords.forEach(r => {
                 let badgeClass = 'badge-success';
                 let badgeText = '成功';
                 if (r.result === 'fail_smoke') { badgeClass = 'badge-danger'; badgeText = '失敗・喫煙'; }
@@ -741,12 +775,64 @@
             document.getElementById('ana-end-date').value = todayStr;
             document.getElementById('ana-period-type').value = 'week';
             toggleCustomPeriod();
+
+            // シーン別選択プルの初期化
+            fillSelect('ana-select-scene', appData.scenes);
+            updateSceneDetailAnalysis();
         }
 
         function toggleCustomPeriod() {
             const type = document.getElementById('ana-period-type').value;
             const customGroup = document.getElementById('custom-period-group');
             customGroup.style.display = (type === 'custom') ? 'grid' : 'none';
+        }
+
+        // シーン別詳細分析の更新
+        function updateSceneDetailAnalysis() {
+            const selectedScene = document.getElementById('ana-select-scene').value;
+            const tbody = document.getElementById('ana-scene-detail-tbody');
+            
+            // 選択されたシーンに該当するレコードを抽出
+            const sceneRecords = appData.records.filter(r => r.scene === selectedScene);
+
+            // 対策案ごとに集計
+            let actionMap = {};
+            sceneRecords.forEach(r => {
+                const action = r.action || '未指定';
+                if (!actionMap[action]) actionMap[action] = { count: 0, success: 0, memos: [] };
+                if (r.result === 'success' || r.result === 'fail_smoke') {
+                    actionMap[action].count++;
+                    if (r.result === 'success') actionMap[action].success++;
+                }
+                if (r.memo && r.memo.trim() !== '') {
+                    actionMap[action].memos.push(r.memo);
+                }
+            });
+
+            const sortedActions = Object.keys(actionMap).sort((a, b) => {
+                const rateA = actionMap[a].count > 0 ? (actionMap[a].success / actionMap[a].count) : 0;
+                const rateB = actionMap[b].count > 0 ? (actionMap[b].success / actionMap[b].count) : 0;
+                return rateB - rateA;
+            });
+
+            if (sortedActions.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">このシーンの記録はありません。</td></tr>';
+                return;
+            }
+
+            let rows = '';
+            sortedActions.forEach(action => {
+                const data = actionMap[action];
+                const sRate = data.count > 0 ? Math.round((data.success / data.count) * 100) : 0;
+                const memosText = data.memos.length > 0 ? data.memos.join(' / ') : '-';
+                rows += `<tr>
+                    <td>${action}</td>
+                    <td>${data.count}回</td>
+                    <td>${sRate}% (${data.success}/${data.count})</td>
+                    <td><small style="color:var(--text-sub);">${memosText}</small></td>
+                </tr>`;
+            });
+            tbody.innerHTML = rows;
         }
 
         function updateAnalysis() {
@@ -850,6 +936,10 @@
                 rows += `<tr><td>${key}</td><td>${data.count}回</td><td>${sRate}% (${data.success}/${data.count})</td><td><small style="color:var(--text-sub);">${latestMemo}</small></td></tr>`;
             });
             tbody.innerHTML = rows;
+
+            // シーン別詳細分析のプルダウンも更新
+            fillSelect('ana-select-scene', appData.scenes, document.getElementById('ana-select-scene').value);
+            updateSceneDetailAnalysis();
         }
 
         function renderCharts(labels, successData, smokeEventData, smokeCountData, savedCostData, spentCostData) {

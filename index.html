@@ -30,7 +30,7 @@
         body {
             background-color: var(--bg-color);
             color: var(--text-main);
-            padding-bottom: 70px;
+            padding-bottom: 90px; /* 大きくなったナビゲーションに被らないよう余白を確保 */
         }
 
         header {
@@ -102,7 +102,7 @@
             opacity: 0.8;
         }
 
-        /* 下部ナビゲーション */
+        /* 下部ナビゲーション（タブボタンを大きく押しやすく改善） */
         nav {
             position: fixed;
             bottom: 0;
@@ -112,25 +112,35 @@
             border-top: 1px solid var(--border-color);
             display: flex;
             justify-content: space-around;
-            padding: 8px 0;
+            padding: 10px 4px;
             z-index: 1000;
+            box-shadow: 0 -2px 5px rgba(0,0,0,0.05);
         }
 
         nav button {
             background: none;
             border: none;
             color: var(--text-sub);
-            font-size: 0.75rem;
-            width: auto;
-            padding: 4px;
+            font-size: 0.85rem; /* フォントサイズを拡大 */
+            width: 100%;
+            padding: 12px 4px; /* タップ領域を上下に拡大 */
             display: flex;
             flex-direction: column;
             align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: background-color 0.2s;
+        }
+
+        nav button:active {
+            background-color: #f0ede6;
         }
 
         nav button.active {
             color: var(--accent-dark);
             font-weight: bold;
+            background-color: #faf8f5;
         }
 
         .view-section {
@@ -484,13 +494,9 @@
 
         window.onload = function() {
             const now = new Date();
-            // 端末のローカル日時に基づくフォーマット（YYYY-MM-DDTHH:mm）
             const year = now.getFullYear();
             const month = String(now.getMonth() + 1).padStart(2, '0');
             const day = String(now.getDate()).padStart(2, '0');
-            const hours = String(now.getHours()).padStart(2, '0');
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            
             document.getElementById('home-date').innerText = `${year}/${month}/${day}`;
             loadSettingsToForm();
             updateHome();
@@ -503,7 +509,6 @@
             document.getElementById('record-submit-btn').innerText = '記録を保存する';
             document.getElementById('rec-id').value = '';
 
-            // 端末の現在日時（ローカルタイム）を初期値にセット
             const now = new Date();
             const year = now.getFullYear();
             const month = String(now.getMonth() + 1).padStart(2, '0');
@@ -672,7 +677,6 @@
             listContainer.innerHTML = html;
         }
 
-        // マスタ管理
         function addMasterItem() {
             const type = document.getElementById('master-type').value;
             const name = document.getElementById('master-name').value.trim();
@@ -727,7 +731,6 @@
             renderMasterList();
         }
 
-        // 分析関連
         function initAnalysisPeriod() {
             const now = new Date();
             const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;

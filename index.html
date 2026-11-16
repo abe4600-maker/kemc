@@ -265,7 +265,7 @@
                 <form id="record-form" onsubmit="saveRecord(event)">
                     <input type="hidden" id="rec-id">
                     <div class="form-group">
-                        <label>日時 (JST)</label>
+                        <label>日時 (端末現在時刻)</label>
                         <input type="datetime-local" id="rec-datetime" required>
                     </div>
                     <div class="form-group">
@@ -449,7 +449,6 @@
             records: []
         };
 
-        // マイグレーション：旧データにissuesが含まれていた場合の互換処理
         if (appData.issues) {
             delete appData.issues;
             saveData();
@@ -485,9 +484,14 @@
 
         window.onload = function() {
             const now = new Date();
-            const jstOffset = 9 * 60;
-            const jstDate = new Date(now.getTime() + (now.getTimezoneOffset() + jstOffset) * 60000);
-            document.getElementById('home-date').innerText = jstDate.toLocaleDateString('ja-JP');
+            // 端末のローカル日時に基づくフォーマット（YYYY-MM-DDTHH:mm）
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            
+            document.getElementById('home-date').innerText = `${year}/${month}/${day}`;
             loadSettingsToForm();
             updateHome();
         };
@@ -499,10 +503,15 @@
             document.getElementById('record-submit-btn').innerText = '記録を保存する';
             document.getElementById('rec-id').value = '';
 
+            // 端末の現在日時（ローカルタイム）を初期値にセット
             const now = new Date();
-            const jstOffset = 9 * 60;
-            const jstDate = new Date(now.getTime() + (now.getTimezoneOffset() + jstOffset) * 60000);
-            document.getElementById('rec-datetime').value = jstDate.toISOString().slice(0, 16);
+            const year = now.getFullYear();
+            const month = String(now.getMonth() + 1).padStart(2, '0');
+            const day = String(now.getDate()).padStart(2, '0');
+            const hours = String(now.getHours()).padStart(2, '0');
+            const minutes = String(now.getMinutes()).padStart(2, '0');
+            
+            document.getElementById('rec-datetime').value = `${year}-${month}-${day}T${hours}:${minutes}`;
 
             fillSelect('rec-scene', appData.scenes);
             fillSelect('rec-action', appData.actions);
@@ -598,7 +607,8 @@
         }
 
         function updateHome() {
-            const todayStr = new Date().toISOString().slice(0, 10);
+            const now = new Date();
+            const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
             const todayRecords = appData.records.filter(r => r.datetime.startsWith(todayStr));
 
             let smokeTotal = 0;
@@ -720,9 +730,11 @@
         // 分析関連
         function initAnalysisPeriod() {
             const now = new Date();
-            const todayStr = now.toISOString().slice(0, 10);
+            const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
             const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-            document.getElementById('ana-start-date').value = weekAgo.toISOString().slice(0, 10);
+            const weekAgoStr = `${weekAgo.getFullYear()}-${String(weekAgo.getMonth() + 1).padStart(2, '0')}-${String(weekAgo.getDate()).padStart(2, '0')}`;
+            
+            document.getElementById('ana-start-date').value = weekAgoStr;
             document.getElementById('ana-end-date').value = todayStr;
             document.getElementById('ana-period-type').value = 'week';
             toggleCustomPeriod();
@@ -801,7 +813,6 @@
 
             renderCharts(chartLabels, successData, smokeEventData, smokeCountData, savedCostData, spentCostData);
 
-            // シーン × 対策案の集計
             let comboMap = {};
             filteredRecords.forEach(r => {
                 const key = `${r.scene} > ${r.action}`;
@@ -817,7 +828,6 @@
 
             const tbody = document.getElementById('ana-ranking-tbody');
             let rows = '';
-            // 成功率の高い順（成功率が同じ場合は実践回数が多い順）にソート
             const sortedCombos = Object.keys(comboMap).sort((a,b) => {
                 const rateA = comboMap[a].count > 0 ? (comboMap[a].success / comboMap[a].count) : 0;
                 const rateB = comboMap[b].count > 0 ? (comboMap[b].success / comboMap[b].count) : 0;

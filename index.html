@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>喫煙管理・習慣改善アプリ</title>
+    <!-- Chart.js CDNの読み込み -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --bg-color: #f7f6f2; /* オフホワイト・ベージュ系 */
+            --card-bg: #ffffff;
+            --text-main: #2c2c2c;
+            --text-sub: #666666;
+            --accent: #4a5568; /* チャコールグレー */
+            --accent-dark: #2d3748;
+            --border-color: #e2dfd8;
+            --success: #38a169;
+            --danger: #e53e3e;
+            --warning: #d69e2e;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding-bottom: 70px;
+        }
+
+        header {
+            background-color: var(--accent-dark);
+            color: #fff;
+            padding: 16px;
+            text-align: center;
+            font-size: 1.1rem;
+            font-weight: bold;
+            border-bottom: 3px solid #d4cfc4;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 16px;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+        }
+
+        h2 {
+            font-size: 1rem;
+            color: var(--accent);
+            margin-bottom: 12px;
+            border-bottom: 1px dashed var(--border-color);
+            padding-bottom: 6px;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--text-sub);
+            margin-bottom: 4px;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 0.95rem;
+            background-color: #fff;
+        }
+
+        button {
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 6px;
+            font-size: 1rem;
+            width: 100%;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        button:active {
+            opacity: 0.8;
+        }
+
+        /* 下部ナビゲーション */
+        nav {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background-color: #fff;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-around;
+            padding: 8px 0;
+            z-index: 1000;
+        }
+
+        nav button {
+            background: none;
+            border: none;
+            color: var(--text-sub);
+            font-size: 0.75rem;
+            width: auto;
+            padding: 4px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        nav button.active {
+            color: var(--accent-dark);
+            font-weight: bold;
+        }
+
+        .view-section {
+            display: none;
+        }
+
+        .view-section.active {
+            display: block;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .stat-box {
+            background: #faf8f5;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: var(--accent-dark);
+            margin-top: 4px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            margin-top: 8px;
+        }
+
+        th, td {
+            border: 1px solid var(--border-color);
+            padding: 8px;
+            text-align: left;
+        }
+
+        th {
+            background-color: #f0ede6;
+        }
+
+        .list-item {
+            padding: 8px 10px;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.9rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .item-actions button {
+            padding: 4px 8px;
+            font-size: 0.75rem;
+            width: auto;
+            margin-left: 4px;
+        }
+
+        .btn-edit { background-color: #718096; }
+        .btn-delete { background-color: var(--danger); }
+
+        .badge {
+            font-size: 0.75rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: white;
+        }
+        .badge-success { background-color: var(--success); }
+        .badge-danger { background-color: var(--danger); }
+        .badge-warning { background-color: var(--warning); }
+    </style>
+</head>
+<body>
+
+    <header id="header-title">喫煙管理・習慣改善アプリ</header>
+
+    <div class="container">
+
+        <!-- 1. ホーム画面 -->
+        <section id="view-home" class="view-section active">
+            <div class="card">
+                <h2>本日のサマリー (<span id="home-date"></span>)</h2>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <label>本日の喫煙本数</label>
+                        <div class="stat-value" id="home-smoke-count">0 本</div>
+                    </div>
+                    <div class="stat-box">
+                        <label>対策成功率</label>
+                        <div class="stat-value" id="home-success-rate">0 %</div>
+                    </div>
+                    <div class="stat-box">
+                        <label>削減コスト (本日)</label>
+                        <div class="stat-value" id="home-saved-cost">¥0</div>
+                    </div>
+                    <div class="stat-box">
+                        <label>出費コスト (本日)</label>
+                        <div class="stat-value" id="home-spent-cost">¥0</div>
+                    </div>
+                </div>
+                <button onclick="openRecordFormForNew()">＋ 日次記録をつける</button>
+            </div>
+
+            <div class="card">
+                <h2>今月のコスト削減目標</h2>
+                <p style="font-size: 0.85rem; color: var(--text-sub); margin-bottom: 8px;">目標: <span id="home-target-cost">¥0</span> / 月</p>
+                <div style="background:#e2dfd8; border-radius:4px; height:12px; overflow:hidden;">
+                    <div id="home-cost-progress-bar" style="background:var(--success); width:0%; height:100%;"></div>
+                </div>
+                <p style="font-size: 0.8rem; text-align:right; margin-top:4px;" id="home-cost-progress-text">達成率: 0%</p>
+            </div>
+
+            <div class="card">
+                <h2>最近の記録一覧（編集・削除対応）</h2>
+                <div id="home-recent-list">
+                    <p style="font-size: 0.85rem; color: var(--text-sub);">記録はまだありません。</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. 日次記録登録・編集画面 -->
+        <section id="view-record" class="view-section">
+            <div class="card">
+                <h2 id="record-form-title">日次記録の登録</h2>
+                <form id="record-form" onsubmit="saveRecord(event)">
+                    <input type="hidden" id="rec-id">
+                    <div class="form-group">
+                        <label>日時 (JST)</label>
+                        <input type="datetime-local" id="rec-datetime" required>
+                    </div>
+                    <div class="form-group">
+                        <label>シーン</label>
+                        <select id="rec-scene" required></select>
+                    </div>
+                    <div class="form-group">
+                        <label>対策案</label>
+                        <select id="rec-action" required></select>
+                    </div>
+                    <div class="form-group">
+                        <label>実行結果</label>
+                        <select id="rec-result" onchange="toggleSmokeInput()" required>
+                            <option value="success">対策成功（喫煙せず）</option>
+                            <option value="fail_smoke">対策失敗・喫煙</option>
+                            <option value="none_smoke">対策なし・喫煙</option>
+                            <option value="none_nosmoke">対策なし・非喫煙</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="smoke-count-group">
+                        <label>喫煙本数</label>
+                        <input type="number" id="rec-smoke-count" value="1" min="1">
+                    </div>
+                    <div class="form-group">
+                        <label>体感効果・メモ</label>
+                        <textarea id="rec-memo" placeholder="例：意外と水を飲んだら落ち着いた"></textarea>
+                    </div>
+                    <button type="submit" id="record-submit-btn">記録を保存する</button>
+                    <button type="button" class="btn-edit" style="margin-top:8px;" onclick="switchView('home')">キャンセル</button>
+                </form>
+            </div>
+        </section>
+
+        <!-- 3. マスタ管理画面 -->
+        <section id="view-master" class="view-section">
+            <div class="card">
+                <h2>マスタ新規追加</h2>
+                <div class="form-group">
+                    <label>追加種別</label>
+                    <select id="master-type">
+                        <option value="scene">シーン</option>
+                        <option value="action">対策案</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>名称</label>
+                    <input type="text" id="master-name" placeholder="名称を入力">
+                </div>
+                <button onclick="addMasterItem()">マスタに追加</button>
+            </div>
+
+            <div class="card">
+                <h2>登録済みマスタ管理（編集・削除）</h2>
+                <div id="master-list-container"></div>
+            </div>
+        </section>
+
+        <!-- 4. 分析・レポート画面 -->
+        <section id="view-analysis" class="view-section">
+            <div class="card">
+                <h2>分析期間の設定</h2>
+                <div class="form-group">
+                    <label>表示期間</label>
+                    <select id="ana-period-type" onchange="toggleCustomPeriod()">
+                        <option value="week">直近1週間</option>
+                        <option value="month">今月（1日〜末日）</option>
+                        <option value="all">全期間</option>
+                        <option value="custom">任意の日付範囲</option>
+                    </select>
+                </div>
+                <div id="custom-period-group" style="display: none; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                    <div class="form-group">
+                        <label>開始日</label>
+                        <input type="date" id="ana-start-date" onchange="updateAnalysis()">
+                    </div>
+                    <div class="form-group">
+                        <label>終了日</label>
+                        <input type="date" id="ana-end-date" onchange="updateAnalysis()">
+                    </div>
+                </div>
+                <button onclick="updateAnalysis()">分析を更新する</button>
+            </div>
+
+            <div class="card">
+                <h2>期間・コストサマリー (基準: 1日8本)</h2>
+                <div class="stats-grid">
+                    <div class="stat-box">
+                        <label>対象記録件数</label>
+                        <div class="stat-value" id="ana-total-records">0件</div>
+                    </div>
+                    <div class="stat-box">
+                        <label>対策成功率</label>
+                        <div class="stat-value" id="ana-success-rate">0%</div>
+                    </div>
+                    <div class="stat-box">
+                        <label>削減コスト</label>
+                        <div class="stat-value" id="ana-total-saved">¥0</div>
+                    </div>
+                    <div class="stat-box">
+                        <label>出費コスト</label>
+                        <div class="stat-value" id="ana-total-spent">¥0</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h2>成功回数 vs 喫煙回数 (推移)</h2>
+                <canvas id="lineChart" style="max-height:220px;"></canvas>
+            </div>
+
+            <div class="card">
+                <h2>喫煙本数 vs 削減・出費コスト (推移)</h2>
+                <canvas id="barChart" style="max-height:220px;"></canvas>
+            </div>
+
+            <div class="card">
+                <h2>シーン × 対策案 効果ランキング</h2>
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>シーン / 対策</th>
+                                <th>実践</th>
+                                <th>成功率</th>
+                                <th>体感メモ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ana-ranking-tbody">
+                            <tr><td colspan="4" style="text-align:center;">データなし</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- 5. 基本設定画面 -->
+        <section id="view-settings" class="view-section">
+            <div class="card">
+                <h2>コスト・喫煙基準設定</h2>
+                <div class="form-group">
+                    <label>基準となる1日の喫煙本数 (本)</label>
+                    <input type="number" id="set-base-count" value="8">
+                </div>
+                <div class="form-group">
+                    <label>タバコ1箱の価格 (円)</label>
+                    <input type="number" id="set-box-price" value="600">
+                </div>
+                <div class="form-group">
+                    <label>1箱あたりの本数 (本)</label>
+                    <input type="number" id="set-box-amount" value="20">
+                </div>
+                <div class="form-group">
+                    <label>月間コスト削減目標 (円)</label>
+                    <input type="number" id="set-monthly-target" value="15000">
+                </div>
+                <button onclick="saveSettings()">設定を保存する</button>
+            </div>
+        </section>
+
+    </div>
+
+    <!-- 下部ナビゲーション -->
+    <nav>
+        <button onclick="switchView('home')" class="active" id="nav-home">ホーム</button>
+        <button onclick="openRecordFormForNew()" id="nav-record">日次記録</button>
+        <button onclick="switchView('master')" id="nav-master">マスタ管理</button>
+        <button onclick="switchView('analysis')" id="nav-analysis">分析</button>
+        <button onclick="switchView('settings')" id="nav-settings">設定</button>
+    </nav>
+
+    <script>
+        let appData = JSON.parse(localStorage.getItem('smoking_app_data')) || {
+            settings: {
+                baseCount: 8,
+                boxPrice: 600,
+                boxAmount: 20,
+                monthlyTarget: 15000
+            },
+            scenes: ["食後", "仕事の休憩中", "ストレスを感じたとき", "起床後", "帰宅時"],
+            actions: ["水を飲む", "ガムを噛む", "散歩する", "深呼吸する", "何もしない"],
+            records: []
+        };
+
+        // マイグレーション：旧データにissuesが含まれていた場合の互換処理
+        if (appData.issues) {
+            delete appData.issues;
+            saveData();
+        }
+
+        let lineChartInstance = null;
+        let barChartInstance = null;
+
+        function saveData() {
+            localStorage.setItem('smoking_app_data', JSON.stringify(appData));
+        }
+
+        function switchView(viewName) {
+            document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('nav button').forEach(el => el.classList.remove('active'));
+
+            const targetSection = document.getElementById('view-' + viewName);
+            if (targetSection) targetSection.classList.add('active');
+
+            const targetNav = document.getElementById('nav-' + viewName);
+            if (targetNav) targetNav.classList.add('active');
+
+            window.scrollTo(0, 0);
+
+            if (viewName === 'home') updateHome();
+            if (viewName === 'master') renderMasterList();
+            if (viewName === 'analysis') {
+                initAnalysisPeriod();
+                updateAnalysis();
+            }
+            if (viewName === 'settings') loadSettingsToForm();
+        }
+
+        window.onload = function() {
+            const now = new Date();
+            const jstOffset = 9 * 60;
+            const jstDate = new Date(now.getTime() + (now.getTimezoneOffset() + jstOffset) * 60000);
+            document.getElementById('home-date').innerText = jstDate.toLocaleDateString('ja-JP');
+            loadSettingsToForm();
+            updateHome();
+        };
+
+        function openRecordFormForNew() {
+            switchView('record');
+
+            document.getElementById('record-form-title').innerText = '日次記録の登録';
+            document.getElementById('record-submit-btn').innerText = '記録を保存する';
+            document.getElementById('rec-id').value = '';
+
+            const now = new Date();
+            const jstOffset = 9 * 60;
+            const jstDate = new Date(now.getTime() + (now.getTimezoneOffset() + jstOffset) * 60000);
+            document.getElementById('rec-datetime').value = jstDate.toISOString().slice(0, 16);
+
+            fillSelect('rec-scene', appData.scenes);
+            fillSelect('rec-action', appData.actions);
+
+            document.getElementById('rec-result').value = 'success';
+            document.getElementById('rec-smoke-count').value = 1;
+            document.getElementById('rec-memo').value = '';
+            toggleSmokeInput();
+        }
+
+        function openRecordFormForEdit(id) {
+            const record = appData.records.find(r => r.id === id);
+            if (!record) return alert('記録が見つかりません。');
+
+            switchView('record');
+
+            document.getElementById('record-form-title').innerText = '日次記録の編集';
+            document.getElementById('record-submit-btn').innerText = '変更を更新する';
+            document.getElementById('rec-id').value = record.id;
+            document.getElementById('rec-datetime').value = record.datetime;
+
+            fillSelect('rec-scene', appData.scenes, record.scene);
+            fillSelect('rec-action', appData.actions, record.action);
+            document.getElementById('rec-result').value = record.result;
+            document.getElementById('rec-smoke-count').value = record.smokeCount || 1;
+            document.getElementById('rec-memo').value = record.memo || '';
+            toggleSmokeInput();
+        }
+
+        function fillSelect(elementId, items, selectedValue = '') {
+            const sel = document.getElementById(elementId);
+            if (!sel) return;
+            sel.innerHTML = '';
+            if (!items || items.length === 0) {
+                const opt = document.createElement('option');
+                opt.value = "";
+                opt.textContent = "（マスタが登録されていません）";
+                sel.appendChild(opt);
+                return;
+            }
+            items.forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = item;
+                opt.textContent = item;
+                if (item === selectedValue) opt.selected = true;
+                sel.appendChild(opt);
+            });
+        }
+
+        function toggleSmokeInput() {
+            const res = document.getElementById('rec-result').value;
+            const group = document.getElementById('smoke-count-group');
+            if (res === 'fail_smoke' || res === 'none_smoke') {
+                group.style.display = 'block';
+            } else {
+                group.style.display = 'none';
+            }
+        }
+
+        function saveRecord(e) {
+            e.preventDefault();
+            const editId = document.getElementById('rec-id').value;
+            const datetime = document.getElementById('rec-datetime').value;
+            const scene = document.getElementById('rec-scene').value;
+            const action = document.getElementById('rec-action').value;
+            const result = document.getElementById('rec-result').value;
+            const smokeCount = result.includes('smoke') ? parseInt(document.getElementById('rec-smoke-count').value) || 0 : 0;
+            const memo = document.getElementById('rec-memo').value;
+
+            if (editId) {
+                const index = appData.records.findIndex(r => r.id == editId);
+                if (index !== -1) {
+                    appData.records[index] = { id: parseInt(editId), datetime, scene, action, result, smokeCount, memo };
+                }
+                alert('記録を更新しました。');
+            } else {
+                const newRecord = { id: Date.now(), datetime, scene, action, result, smokeCount, memo };
+                appData.records.unshift(newRecord);
+                alert('記録を保存しました。');
+            }
+
+            document.getElementById('rec-id').value = '';
+            saveData();
+            switchView('home');
+        }
+
+        function deleteRecord(id) {
+            if (!confirm('この記録を削除してもよろしいですか？')) return;
+            appData.records = appData.records.filter(r => r.id !== id);
+            saveData();
+            updateHome();
+            alert('削除しました。');
+        }
+
+        function updateHome() {
+            const todayStr = new Date().toISOString().slice(0, 10);
+            const todayRecords = appData.records.filter(r => r.datetime.startsWith(todayStr));
+
+            let smokeTotal = 0;
+            let successCount = 0;
+            let totalActionCount = 0;
+
+            todayRecords.forEach(r => {
+                smokeTotal += r.smokeCount;
+                if (r.result === 'success' || r.result === 'fail_smoke') {
+                    totalActionCount++;
+                    if (r.result === 'success') successCount++;
+                }
+            });
+
+            const successRate = totalActionCount > 0 ? Math.round((successCount / totalActionCount) * 100) : 0;
+            const pricePerSmoke = appData.settings.boxPrice / appData.settings.boxAmount;
+            const baseCount = appData.settings.baseCount || 8;
+            const savedCount = Math.max(0, (baseCount * todayRecords.length) - smokeTotal);
+            const savedCost = Math.round(savedCount * pricePerSmoke);
+            const spentCost = Math.round(smokeTotal * pricePerSmoke);
+
+            document.getElementById('home-smoke-count').innerText = smokeTotal + ' 本';
+            document.getElementById('home-success-rate').innerText = successRate + ' %';
+            document.getElementById('home-saved-cost').innerText = '¥' + savedCost.toLocaleString();
+            document.getElementById('home-spent-cost').innerText = '¥' + spentCost.toLocaleString();
+
+            document.getElementById('home-target-cost').innerText = '¥' + appData.settings.monthlyTarget.toLocaleString();
+            let monthSavedTotal = savedCost * 30;
+            let targetRate = Math.min(100, Math.round((monthSavedTotal / appData.settings.monthlyTarget) * 100));
+            document.getElementById('home-cost-progress-bar').style.width = targetRate + '%';
+            document.getElementById('home-cost-progress-text').innerText = '達成率: ' + targetRate + '%';
+
+            const listContainer = document.getElementById('home-recent-list');
+            if (appData.records.length === 0) {
+                listContainer.innerHTML = '<p style="font-size: 0.85rem; color: var(--text-sub);">記録はまだありません。</p>';
+                return;
+            }
+
+            let html = '';
+            appData.records.slice(0, 10).forEach(r => {
+                let badgeClass = 'badge-success';
+                let badgeText = '成功';
+                if (r.result === 'fail_smoke') { badgeClass = 'badge-danger'; badgeText = '失敗・喫煙'; }
+                if (r.result === 'none_smoke') { badgeClass = 'badge-danger'; badgeText = '対策無・喫煙'; }
+                if (r.result === 'none_nosmoke') { badgeClass = 'badge-warning'; badgeText = '対策無・非喫煙'; }
+
+                html += `<div class="list-item">
+                    <div>
+                        <strong style="font-size:0.85rem;">${r.scene}</strong><br>
+                        <small style="color:var(--text-sub);">${r.datetime.replace('T', ' ')} (${r.action})</small>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:4px;">
+                        <span class="badge ${badgeClass}">${badgeText}</span>
+                        <div class="item-actions">
+                            <button class="btn-edit" onclick="openRecordFormForEdit(${r.id})">編集</button>
+                            <button class="btn-delete" onclick="deleteRecord(${r.id})">削除</button>
+                        </div>
+                    </div>
+                </div>`;
+            });
+            listContainer.innerHTML = html;
+        }
+
+        // マスタ管理
+        function addMasterItem() {
+            const type = document.getElementById('master-type').value;
+            const name = document.getElementById('master-name').value.trim();
+            if (!name) return alert('名称を入力してください。');
+
+            let targetArray = (type === 'scene') ? appData.scenes : appData.actions;
+            if (targetArray.includes(name)) return alert('すでに登録されています。');
+
+            targetArray.push(name);
+            saveData();
+            document.getElementById('master-name').value = '';
+            renderMasterList();
+            alert('追加しました。');
+        }
+
+        function renderMasterList() {
+            const container = document.getElementById('master-list-container');
+            let html = createMasterCategoryHtml('【シーン】', appData.scenes, 'scene');
+            html += createMasterCategoryHtml('【対策案】', appData.actions, 'action');
+            container.innerHTML = html;
+        }
+
+        function createMasterCategoryHtml(title, items, category) {
+            let h = `<h3 style="font-size:0.9rem; margin-top:12px; color:var(--accent); border-bottom:1px solid var(--border-color); padding-bottom:4px;">${title}</h3>`;
+            if (!items || items.length === 0) return h + `<p style="font-size:0.80rem; color:var(--text-sub); padding:4px 0;">登録なし</p>`;
+            items.forEach((item, index) => {
+                h += `<div class="list-item">
+                    <span>${item}</span>
+                    <div class="item-actions">
+                        <button class="btn-edit" onclick="editMasterItem('${category}', ${index})">編集</button>
+                        <button class="btn-delete" onclick="deleteMasterItem('${category}', ${index})">削除</button>
+                    </div>
+                </div>`;
+            });
+            return h;
+        }
+
+        function editMasterItem(category, index) {
+            let targetArray = (category === 'scene') ? appData.scenes : appData.actions;
+            const newName = prompt('新しい名称を入力してください:', targetArray[index]);
+            if (newName === null || !newName.trim()) return;
+            targetArray[index] = newName.trim();
+            saveData();
+            renderMasterList();
+        }
+
+        function deleteMasterItem(category, index) {
+            let targetArray = (category === 'scene') ? appData.scenes : appData.actions;
+            if (!confirm('削除してもよろしいですか？')) return;
+            targetArray.splice(index, 1);
+            saveData();
+            renderMasterList();
+        }
+
+        // 分析関連
+        function initAnalysisPeriod() {
+            const now = new Date();
+            const todayStr = now.toISOString().slice(0, 10);
+            const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            document.getElementById('ana-start-date').value = weekAgo.toISOString().slice(0, 10);
+            document.getElementById('ana-end-date').value = todayStr;
+            document.getElementById('ana-period-type').value = 'week';
+            toggleCustomPeriod();
+        }
+
+        function toggleCustomPeriod() {
+            const type = document.getElementById('ana-period-type').value;
+            const customGroup = document.getElementById('custom-period-group');
+            customGroup.style.display = (type === 'custom') ? 'grid' : 'none';
+        }
+
+        function updateAnalysis() {
+            const periodType = document.getElementById('ana-period-type').value;
+            const now = new Date();
+            let startDate = null;
+            let endDate = null;
+
+            if (periodType === 'week') {
+                endDate = new Date(now);
+                startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            } else if (periodType === 'month') {
+                startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+                endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+            } else if (periodType === 'custom') {
+                startDate = new Date(document.getElementById('ana-start-date').value);
+                endDate = new Date(document.getElementById('ana-end-date').value);
+                endDate.setHours(23, 59, 59);
+            }
+
+            const filteredRecords = appData.records.filter(r => {
+                const rDate = new Date(r.datetime);
+                if (periodType === 'all') return true;
+                return rDate >= startDate && rDate <= endDate;
+            });
+
+            document.getElementById('ana-total-records').innerText = filteredRecords.length + '件';
+
+            let success = 0;
+            let actionCount = 0;
+            let totalSmokeCount = 0;
+
+            filteredRecords.forEach(r => {
+                totalSmokeCount += r.smokeCount;
+                if (r.result === 'success' || r.result === 'fail_smoke') {
+                    actionCount++;
+                    if (r.result === 'success') success++;
+                }
+            });
+
+            const rate = actionCount > 0 ? Math.round((success / actionCount) * 100) : 0;
+            document.getElementById('ana-success-rate').innerText = rate + '%';
+
+            const pricePerSmoke = appData.settings.boxPrice / appData.settings.boxAmount;
+            const baseCount = appData.settings.baseCount || 8;
+            let totalSavedCount = Math.max(0, (baseCount * filteredRecords.length) - totalSmokeCount);
+
+            document.getElementById('ana-total-saved').innerText = '¥' + Math.round(totalSavedCount * pricePerSmoke).toLocaleString();
+            document.getElementById('ana-total-spent').innerText = '¥' + Math.round(totalSmokeCount * pricePerSmoke).toLocaleString();
+
+            let dateMap = {};
+            filteredRecords.forEach(r => {
+                const dStr = r.datetime.slice(0, 10);
+                if (!dateMap[dStr]) dateMap[dStr] = { success: 0, smokeEvent: 0, smokeCount: 0 };
+                if (r.result === 'success') dateMap[dStr].success++;
+                if (r.result === 'fail_smoke' || r.result === 'none_smoke') dateMap[dStr].smokeEvent++;
+                dateMap[dStr].smokeCount += r.smokeCount;
+            });
+
+            const sortedDates = Object.keys(dateMap).sort();
+            let chartLabels = sortedDates;
+            let successData = sortedDates.map(d => dateMap[d].success);
+            let smokeEventData = sortedDates.map(d => dateMap[d].smokeEvent);
+            let smokeCountData = sortedDates.map(d => dateMap[d].smokeCount);
+            let savedCostData = sortedDates.map(d => Math.round(Math.max(0, baseCount - dateMap[d].smokeCount) * pricePerSmoke));
+            let spentCostData = sortedDates.map(d => Math.round(dateMap[d].smokeCount * pricePerSmoke));
+
+            renderCharts(chartLabels, successData, smokeEventData, smokeCountData, savedCostData, spentCostData);
+
+            // シーン × 対策案の集計
+            let comboMap = {};
+            filteredRecords.forEach(r => {
+                const key = `${r.scene} > ${r.action}`;
+                if (!comboMap[key]) comboMap[key] = { count: 0, success: 0, memos: [] };
+                if (r.result === 'success' || r.result === 'fail_smoke') {
+                    comboMap[key].count++;
+                    if (r.result === 'success') comboMap[key].success++;
+                }
+                if (r.memo && r.memo.trim() !== '') {
+                    comboMap[key].memos.push(r.memo);
+                }
+            });
+
+            const tbody = document.getElementById('ana-ranking-tbody');
+            let rows = '';
+            // 成功率の高い順（成功率が同じ場合は実践回数が多い順）にソート
+            const sortedCombos = Object.keys(comboMap).sort((a,b) => {
+                const rateA = comboMap[a].count > 0 ? (comboMap[a].success / comboMap[a].count) : 0;
+                const rateB = comboMap[b].count > 0 ? (comboMap[b].success / comboMap[b].count) : 0;
+                if (rateB !== rateA) return rateB - rateA;
+                return comboMap[b].count - comboMap[a].count;
+            });
+
+            if (sortedCombos.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;">データなし</td></tr>';
+                return;
+            }
+
+            sortedCombos.forEach(key => {
+                const data = comboMap[key];
+                const sRate = data.count > 0 ? Math.round((data.success / data.count) * 100) : 0;
+                const latestMemo = data.memos.length > 0 ? data.memos[data.memos.length - 1] : '-';
+                rows += `<tr><td>${key}</td><td>${data.count}回</td><td>${sRate}% (${data.success}/${data.count})</td><td><small style="color:var(--text-sub);">${latestMemo}</small></td></tr>`;
+            });
+            tbody.innerHTML = rows;
+        }
+
+        function renderCharts(labels, successData, smokeEventData, smokeCountData, savedCostData, spentCostData) {
+            const lineCtx = document.getElementById('lineChart').getContext('2d');
+            if (lineChartInstance) lineChartInstance.destroy();
+            lineChartInstance = new Chart(lineCtx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: '対策成功回数', data: successData, borderColor: '#38a169', backgroundColor: '#38a169', tension: 0.1 },
+                        { label: '喫煙回数', data: smokeEventData, borderColor: '#e53e3e', backgroundColor: '#e53e3e', tension: 0.1 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            const barCtx = document.getElementById('barChart').getContext('2d');
+            if (barChartInstance) barChartInstance.destroy();
+            barChartInstance = new Chart(barCtx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        { label: '喫煙本数', data: smokeCountData, backgroundColor: '#cbd5e0' },
+                        { label: '削減コスト(円)', data: savedCostData, backgroundColor: '#319795' },
+                        { label: '出費コスト(円)', data: spentCostData, backgroundColor: '#dd6b20' }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        function loadSettingsToForm() {
+            document.getElementById('set-base-count').value = appData.settings.baseCount || 8;
+            document.getElementById('set-box-price').value = appData.settings.boxPrice;
+            document.getElementById('set-box-amount').value = appData.settings.boxAmount;
+            document.getElementById('set-monthly-target').value = appData.settings.monthlyTarget;
+        }
+
+        function saveSettings() {
+            appData.settings.baseCount = parseInt(document.getElementById('set-base-count').value) || 8;
+            appData.settings.boxPrice = parseInt(document.getElementById('set-box-price').value) || 600;
+            appData.settings.boxAmount = parseInt(document.getElementById('set-box-amount').value) || 20;
+            appData.settings.monthlyTarget = parseInt(document.getElementById('set-monthly-target').value) || 15000;
+            saveData();
+            alert('設定を保存しました。');
+        }
+    </script>
+</body>
+</html>

@@ -8,11 +8,11 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         :root {
-            --bg-color: #f7f6f2; /* オフホワイト・ベージュ系 */
+            --bg-color: #f7f6f2;
             --card-bg: #ffffff;
             --text-main: #2c2c2c;
             --text-sub: #666666;
-            --accent: #4a5568; /* チャコールグレー */
+            --accent: #4a5568;
             --accent-dark: #2d3748;
             --border-color: #e2dfd8;
             --success: #38a169;
@@ -214,6 +214,7 @@
             padding: 2px 6px;
             border-radius: 4px;
             color: white;
+            font-weight: bold;
         }
         .badge-success { background-color: var(--success); }
         .badge-danger { background-color: var(--danger); }
@@ -304,8 +305,8 @@
                         <input type="number" id="rec-smoke-count" value="1" min="1">
                     </div>
                     <div class="form-group">
-                        <label>体感効果・メモ</label>
-                        <textarea id="rec-memo" placeholder="例：意外と水を飲んだら落ち着いた"></textarea>
+                        <label>体感効果・メモ (任意)</label>
+                        <textarea id="rec-memo" placeholder="例：冷水を飲んだら落ち着いた"></textarea>
                     </div>
                     <button type="submit" id="record-submit-btn">記録を保存する</button>
                     <button type="button" class="btn-edit" style="margin-top:8px;" onclick="switchView('home')">キャンセル</button>
@@ -419,15 +420,16 @@
             </div>
 
             <div class="card">
-                <h2>シーン × 対策案 効果ランキング</h2>
+                <h2>対策見直しボード（効果の有無が一目でわかる一覧）</h2>
+                <p style="font-size: 0.8rem; color: var(--text-sub); margin-bottom: 8px;">※成功率70%以上＝継続推奨 / 40%未満＝要見直し（別対策へ差し替え）</p>
                 <div style="overflow-x:auto;">
                     <table>
                         <thead>
                             <tr>
                                 <th>シーン / 対策</th>
                                 <th>実践</th>
-                                <th>成功率</th>
-                                <th>体感メモ</th>
+                                <th>成功率・判定</th>
+                                <th>直近メモ</th>
                             </tr>
                         </thead>
                         <tbody id="ana-ranking-tbody">
@@ -481,8 +483,8 @@
                 boxAmount: 20,
                 monthlyTarget: 15000
             },
-            scenes: ["食後", "仕事の休憩中", "ストレスを感じたとき", "起床後", "帰宅時"],
-            actions: ["水を飲む", "ガムを噛む", "散歩する", "深呼吸する", "何もしない"],
+            scenes: ["起床", "外出（出社）", "外出（訪問）", "外出（その他）", "テレワーク昼休み", "出社 昼休み", "帰宅", "商談前", "商談後"],
+            actions: ["冷水", "何もしない", "家族", "睡眠", "嗜好品", "仕事継続", "趣味"],
             records: []
         };
 
@@ -776,7 +778,6 @@
             document.getElementById('ana-period-type').value = 'week';
             toggleCustomPeriod();
 
-            // シーン別選択プルの初期化
             fillSelect('ana-select-scene', appData.scenes);
             updateSceneDetailAnalysis();
         }
@@ -787,15 +788,12 @@
             customGroup.style.display = (type === 'custom') ? 'grid' : 'none';
         }
 
-        // シーン別詳細分析の更新
         function updateSceneDetailAnalysis() {
             const selectedScene = document.getElementById('ana-select-scene').value;
             const tbody = document.getElementById('ana-scene-detail-tbody');
             
-            // 選択されたシーンに該当するレコードを抽出
             const sceneRecords = appData.records.filter(r => r.scene === selectedScene);
 
-            // 対策案ごとに集計
             let actionMap = {};
             sceneRecords.forEach(r => {
                 const action = r.action || '未指定';
@@ -933,11 +931,26 @@
                 const data = comboMap[key];
                 const sRate = data.count > 0 ? Math.round((data.success / data.count) * 100) : 0;
                 const latestMemo = data.memos.length > 0 ? data.memos[data.memos.length - 1] : '-';
-                rows += `<tr><td>${key}</td><td>${data.count}回</td><td>${sRate}% (${data.success}/${data.count})</td><td><small style="color:var(--text-sub);">${latestMemo}</small></td></tr>`;
+                
+                // 効果判定のバッジ切り替え（70%以上で継続推奨、40%未満で要見直し）
+                let evalBadge = '';
+                if (sRate >= 70) {
+                    evalBadge = `<span class="badge badge-success">継続推奨（効果あり）</span>`;
+                } else if (sRate < 40) {
+                    evalBadge = `<span class="badge badge-danger">要見直し（効果なし）</span>`;
+                } else {
+                    evalBadge = `<span class="badge badge-warning">様子見</span>`;
+                }
+
+                rows += `<tr>
+                    <td><strong>${key}</strong></td>
+                    <td>${data.count}回</td>
+                    <td>${sRate}% (${data.success}/${data.count})<br>${evalBadge}</td>
+                    <td><small style="color:var(--text-sub);">${latestMemo}</small></td>
+                </tr>`;
             });
             tbody.innerHTML = rows;
 
-            // シーン別詳細分析のプルダウンも更新
             fillSelect('ana-select-scene', appData.scenes, document.getElementById('ana-select-scene').value);
             updateSceneDetailAnalysis();
         }
